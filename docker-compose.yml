@@ -1,0 +1,68 @@
+version: "3.7"
+
+services:
+
+  db:
+    container_name: wwdb
+    build: ./deployments/cockroach
+    image: ww/db:latest
+    hostname: db
+    volumes:
+    - dbdata:/mnt/data
+    - certsdbserver:/mnt/certs
+    expose:
+    - "5432"
+    ports:
+    - "127.0.0.1:5432:5432"
+
+  wallawire:
+    image: wallawire:latest
+    container_name: wallawire
+    hostname: wallawire
+    depends_on:
+    - db
+    volumes:
+    - certswebserver:/mnt/certshttp
+    - certsdbclient:/mnt/certsdb
+    environment:
+      WALLAWIRE_LOG_DEBUG: "true"
+      WALLAWIRE_LOG_PRETTY: "true"
+      WALLAWIRE_POSTGRES_CA: "/mnt/certsdb/ca.crt"
+      WALLAWIRE_POSTGRES_CERT: "/mnt/certsdb/client.wallawire.crt"
+      WALLAWIRE_POSTGRES_KEY: "/mnt/certsdb/client.wallawire.key"
+      WALLAWIRE_POSTGRES_URL: "postgresql://wallawire@db:5432/wallawire"
+      WALLAWIRE_SERVER_ADDR: "0.0.0.0:8888"
+      WALLAWIRE_SERVER_CA: "/mnt/certshttp/ca.crt"
+      WALLAWIRE_SERVER_CERT: "/mnt/certshttp/server.crt"
+      WALLAWIRE_SERVER_KEY: "/mnt/certshttp/server.key"
+      WALLAWIRE_TOKEN_PASSWORD: "FB56F328-8E09-437C-872D-FC3D618DD4BB"
+    expose:
+    - "8888"
+    ports:
+    - "127.0.0.1:8888:8888"
+
+volumes:
+  dbdata:
+    driver: local
+    driver_opts:
+      type: none
+      device: $PWD/${WALLADATA_PATH}/db
+      o: bind
+  certsdbserver:
+    driver: local
+    driver_opts:
+      type: none
+      device: $PWD/${WALLADATA_PATH}/certs/dbserver
+      o: bind
+  certsdbclient:
+    driver: local
+    driver_opts:
+      type: none
+      device: $PWD/${WALLADATA_PATH}/certs/dbclient
+      o: bind
+  certswebserver:
+    driver: local
+    driver_opts:
+      type: none
+      device: $PWD/${WALLADATA_PATH}/certs/webserver
+      o: bind

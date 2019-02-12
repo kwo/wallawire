@@ -1,0 +1,11 @@
+export WALLAWIRE_LOG_DEBUG=true
+export WALLAWIRE_LOG_PRETTY=true
+export WALLAWIRE_POSTGRES_CA=walladata/certs/dbclient/ca.crt
+export WALLAWIRE_POSTGRES_CERT=walladata/certs/dbclient/client.wallawire.crt
+export WALLAWIRE_POSTGRES_KEY=walladata/certs/dbclient/client.wallawire.key
+export WALLAWIRE_POSTGRES_URL=postgresql://wallawire@localhost:5432/wallawire
+export WALLAWIRE_SERVER_ADDR=0.0.0.0:8888
+export WALLAWIRE_SERVER_CA=walladata/certs/webserver/ca.crt
+export WALLAWIRE_SERVER_CERT=walladata/certs/webserver/server.crt
+export WALLAWIRE_SERVER_KEY=walladata/certs/webserver/server.key
+export WALLAWIRE_TOKEN_PASSWORD=FB56F328-8E09-437C-872D-FC3D618DD4BB

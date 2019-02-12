@@ -1,0 +1,9 @@
+FROM ww/nodejs:latest AS builder
+
+WORKDIR /ww
+COPY ./ ./
+WORKDIR /ww/ui
+RUN yarn install && yarn build
+
+FROM scratch AS final
+COPY --from=builder /ww/ui/public/ /public/

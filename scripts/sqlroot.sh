@@ -1,0 +1,1 @@
+psql "postgresql://root@localhost:5432/wallawire?sslmode=verify-full&sslcert=$PWD/walladata/certs/dbclient/client.root.crt&sslkey=$PWD/walladata/certs/dbclient/client.root.key&sslrootcert=$PWD/walladata/certs/dbclient/ca.crt"
