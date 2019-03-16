@@ -1,12 +1,12 @@
 steps:
 
     - name: 'gcr.io/cloud-builders/docker'
-      args: ['build', '-t', 'gcr.io/$PROJECT_ID/ui', '-t', 'gcr.io/$PROJECT_ID/ui:$BRANCH_NAME-$SHORT_SHA', '--build-arg', 'REPO=gcr.io/$PROJECT_ID/', '--build-arg', 'VERSION=${SHORT_SHA}', 'ui']
+      args: ['build', '-t', 'gcr.io/$PROJECT_ID/ui', '-t', 'gcr.io/$PROJECT_ID/ui:$BRANCH_NAME-$SHORT_SHA', '-t', 'gcr.io/$PROJECT_ID/ui:$BRANCH_NAME-latest', '--build-arg', 'REPO=gcr.io/$PROJECT_ID/', '--build-arg', 'VERSION=${SHORT_SHA}', 'ui']
     - name: 'gcr.io/cloud-builders/docker'
       args: ['push', 'gcr.io/$PROJECT_ID/ui']
 
     - name: 'gcr.io/cloud-builders/docker'
-      args: ['build', '-t', 'gcr.io/$PROJECT_ID/wallawire', '-t', 'gcr.io/$PROJECT_ID/wallawire:$BRANCH_NAME-$SHORT_SHA', '--build-arg', 'REPO=gcr.io/$PROJECT_ID/', '.']
+      args: ['build', '-t', 'gcr.io/$PROJECT_ID/wallawire', '-t', 'gcr.io/$PROJECT_ID/wallawire:$BRANCH_NAME-$SHORT_SHA', '-t', 'gcr.io/$PROJECT_ID/wallawire:$BRANCH_NAME-latest', '--build-arg', 'REPO=gcr.io/$PROJECT_ID/', '.']
     - name: 'gcr.io/cloud-builders/docker'
       args: ['push', 'gcr.io/$PROJECT_ID/wallawire']
 
