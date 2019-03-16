@@ -1,2 +1,0 @@
-DELETE FROM user_role WHERE role_id IN ('05ed6375-0786-4e1a-bcb0-1533c837954d', 'ab9f2901-5aea-43b6-8f2b-7bf97dd30808');
-DELETE FROM roles WHERE id IN ('05ed6375-0786-4e1a-bcb0-1533c837954d', 'ab9f2901-5aea-43b6-8f2b-7bf97dd30808');

@@ -1,5 +1,0 @@
-DROP VIEW  IF EXISTS usernames;
-
-DROP TABLE IF EXISTS user_role;
-DROP TABLE IF EXISTS roles;
-DROP TABLE IF EXISTS users;
