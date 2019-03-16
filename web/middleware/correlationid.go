@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"wallawire/ctxutil"
+	"wallawire/model"
 )
 
 type IdGenerator interface {
@@ -17,10 +17,10 @@ func CorrelationID(idgen IdGenerator) func(next http.Handler) http.Handler {
 
 			ctx := r.Context()
 
-			correlationID := ctxutil.CorrelationIDFromContext(ctx)
+			correlationID := model.CorrelationIDFromContext(ctx)
 			if len(correlationID) == 0 {
 				correlationID = idgen.NewID()
-				ctx = context.WithValue(ctx, ctxutil.CorrelationIDKey, correlationID)
+				ctx = context.WithValue(ctx, model.CorrelationIDKey, correlationID)
 			}
 
 			r = r.WithContext(ctx)

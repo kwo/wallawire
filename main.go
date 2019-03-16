@@ -1,8 +1,6 @@
 package main
 
-//go:generate go run util/webui/generate.go
-
-// TODO: pass NodeID to ID generator
+//go:generate go run tools/webui/generate.go
 
 import (
 	"context"
@@ -20,13 +18,17 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli"
 
-	"wallawire/ctxutil"
+	"wallawire/idgen"
+	"wallawire/logging"
 	"wallawire/model"
-	"wallawire/repositories"
+	"wallawire/repository"
+	"wallawire/schema"
 	"wallawire/services"
+	"wallawire/services/push"
 	"wallawire/web"
 	"wallawire/web/auth"
 	"wallawire/web/router"
+	"wallawire/web/sse"
 	"wallawire/web/static"
 	"wallawire/web/status"
 	"wallawire/web/user"
@@ -66,12 +68,33 @@ func main() {
 			Usage:  "show version information",
 			Action: printVersion,
 		},
+		{
+			Name:   "migrate",
+			Usage:  "upgrade database schema",
+			Action: migrate,
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "revert-last",
+					Usage: "revert last migration",
+				},
+				cli.StringFlag{
+					Name:   "postgres-url",
+					EnvVar: "WALLAWIRE_POSTGRES_ROOT_URL",
+					Usage:  "URL with which to connect to postgres as root",
+				},
+			},
+		},
 	}
 
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{
 			Name:  "help, h",
 			Usage: "show help",
+		},
+		cli.BoolTFlag{
+			Name:   "production",
+			EnvVar: "WALLAWIRE_PRODUCTION_MODE",
+			Usage:  "production mode, when true, prevents using local ui files and log pretty",
 		},
 		cli.StringFlag{
 			Name:   "server-addr",
@@ -104,21 +127,6 @@ func main() {
 			EnvVar: "WALLAWIRE_POSTGRES_URL",
 			Usage:  "URL with which to connect to postgres",
 		},
-		cli.StringFlag{
-			Name:   "postgres-cert",
-			EnvVar: "WALLAWIRE_POSTGRES_CERT",
-			Usage:  "postgres user certificate file",
-		},
-		cli.StringFlag{
-			Name:   "postgres-key",
-			EnvVar: "WALLAWIRE_POSTGRES_KEY",
-			Usage:  "postgres user key file",
-		},
-		cli.StringFlag{
-			Name:   "postgres-ca",
-			EnvVar: "WALLAWIRE_POSTGRES_CA",
-			Usage:  "postgres ca cert file",
-		},
 		cli.BoolFlag{
 			Name:   "log-debug",
 			EnvVar: "WALLAWIRE_LOG_DEBUG",
@@ -129,10 +137,12 @@ func main() {
 			EnvVar: "WALLAWIRE_LOG_PRETTY",
 			Usage:  "pretty print log messages to console",
 		},
+		cli.StringFlag{
+			Name:   "ui-local-path",
+			EnvVar: "WALLAWIRE_UI_LOCAL_PATH",
+			Usage:  "if not empty serve UI files from given path, only if production=false",
+		},
 	}
-
-	// sort.Sort(cli.FlagsByName(app.Flags))
-	// sort.Sort(cli.CommandsByName(app.Commands))
 
 	if err := app.Run(os.Args); err != nil {
 		fmt.Printf("Error: %s\n", err)
@@ -170,10 +180,41 @@ func initApp(c *cli.Context) error {
 	}
 	if c.GlobalBool("log-pretty") {
 		zerolog.TimestampFunc = func() time.Time { return time.Now() }
-		zerolog.TimeFieldFormat = "15:04:03.000"
+		zerolog.TimeFieldFormat = "15:04:05.000"
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout})
 	}
 	return nil
+}
+
+func migrate(c *cli.Context) error {
+
+	logger := logging.New(nil, "main", "migrate")
+	logger.Info().Msg("starting...")
+
+	revertLast := c.Bool("revert-last")
+
+	dbx, errConnect := connectDatabase(c, logger)
+	if errConnect != nil {
+		return errConnect
+	}
+	defer func() {
+		if err := dbx.Close(); err != nil {
+			logger.Warn().Err(err).Msg("cannot close database")
+		}
+	}()
+
+	if n, err := schema.Migrate(dbx.DB, revertLast); err != nil {
+		logger.Error().Err(err).Msg("migration failed")
+	} else if revertLast {
+		logger.Info().Msg("revert schema successful")
+	} else {
+		logger.Info().Int("migrations", n).Msg("upgrade schema successful")
+	}
+
+	logger.Info().Msg("done")
+
+	return nil
+
 }
 
 func start(c *cli.Context) error {
@@ -182,78 +223,109 @@ func start(c *cli.Context) error {
 		return cli.ShowAppHelp(c)
 	}
 
-	logger := log.With().Str("component", "main").Logger()
-	logger.Info().Msg("Starting...")
+	stat, errStatus := makeStatus()
+	if errStatus != nil {
+		return errStatus
+	}
+	stat.PopulateNow()
 
-	pURL := c.String("postgres-url")
-	pCert := c.String("postgres-cert")
-	pKey := c.String("postgres-key")
-	pCA := c.String("postgres-ca")
-	postgresURL := repositories.BuildPostgresURL(pURL, pCert, pKey, pCA)
+	logger := logging.New(nil, "main", "start")
+	logger.Info().Interface("status", stat).Interface("params", formatParams(c)).Msg("starting...")
 
-	// attempt to connect to postgres in a loop
-	dbCtx, _ := context.WithTimeout(context.Background(), dbConnectionTimeout)
-	db, errDB := connectDatabase(dbCtx, postgresURL)
+	productionMode := c.GlobalBool("production")
+
+	// database
+	db, errDB := connectDatabase(c, logger)
 	if errDB != nil {
 		logger.Error().Err(errDB).Msg("cannot connect to database")
 		return errDB
 	}
 	log.Info().Msg("database connected")
+	sqlDB := repository.NewDatabase(db)
 
-	sqlDB := repositories.NewDatabase(db)
-	tokenPassword := c.String("token-password")
+	// repository
+	repoid := idgen.NewUUIDGenerator()
+	repo := repository.New(repoid)
 
-	routerHandler, errRouter := instantiateRouter(sqlDB, tokenPassword)
+	// push messaging
+	pushMessenger := instantiatePushMessenger()
+	heartbeatService := instantiateHeartbeatService(pushMessenger, stat)
+	pushMessenger.AddOnClientConnectTrigger(func(userID, sessionID string) {
+		heartbeatService.SendHeartbeat(time.Now().Truncate(time.Second), userID, sessionID)
+	})
+
+	// ui
+	uiLocalPath := c.String("ui-local-path")
+	var assetStore static.AssetStore
+	if productionMode || len(uiLocalPath) == 0 {
+		assetStore, _ = static.NewEmbeddedStore()
+	} else {
+		logger.Debug().Str("path", uiLocalPath).Msg("using local ui files")
+		ls, errLocalStore := static.NewLocalStore(uiLocalPath)
+		if errLocalStore != nil {
+			return errLocalStore
+		}
+		assetStore = ls
+	}
+
+	// services
+	idgenService := idgen.NewIdGenerator()
+	userService := services.NewUserService(sqlDB, repo, idgenService)
+
+	// router
+	routerHandler, errRouter := instantiateRouter(c, userService, idgenService, assetStore, pushMessenger, stat)
 	if errRouter != nil {
 		return errRouter
 	}
 
-	serverAddr := c.String("server-addr")
-	serverCertFile := c.String("server-cert")
-	serverKeyFile := c.String("server-key")
-	serverCAFile := c.String("server-ca")
+	errors := make(chan error, 1)
 
-	webService, errWebService := instantiateWebService(serverAddr, serverCertFile, serverKeyFile, serverCAFile, routerHandler)
+	// http server
+	webService, errWebService := instantiateWebService(c, routerHandler)
 	if errWebService != nil {
 		return errWebService
 	}
-
-	errors := make(chan error, 1)
 	webService.Start(errors)
 	log.Info().Msg("webservice running")
+
+	go heartbeatService.Start(time.Second * 60)
+
+	// all started
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 	select {
 	case e := <-errors:
-		logger.Error().Err(e).Msg("Abort")
+		logger.Error().Err(e).Msg("abort")
 	case <-signals:
 		fmt.Println()
-		logger.Info().Msg("Caught signal")
+		logger.Info().Msg("caught signal")
 	}
 
-	logger.Info().Msg("Stopping...")
+	logger.Info().Msg("stopping...")
 	webService.Stop(60 * time.Second)
 	if err := db.Close(); err != nil {
-		logger.Warn().Err(err).Msg("Cannot close database.")
+		logger.Warn().Err(err).Msg("cannot close database.")
 	}
-	logger.Info().Msg("Database disconnected")
+	logger.Info().Msg("database disconnected")
 
-	logger.Info().Msg("Exited")
+	logger.Info().Msg("exited")
 
 	return nil
 
 }
 
-func instantiateRouter(db model.Database, tokenPassword string) (http.Handler, error) {
+func instantiatePushMessenger() *push.PushMessenger {
+	return push.New()
+}
 
-	idgen, errIdGen := ctxutil.NewIdGenerator()
-	if errIdGen != nil {
-		return nil, errIdGen
-	}
+func instantiateHeartbeatService(messageBus *push.PushMessenger, status *model.Status) *push.HeartbeatService {
+	return push.NewHeartbeatService(messageBus, status)
+}
 
-	userRepo := repositories.NewUserRepository()
-	userService := services.NewUserService(db, userRepo, idgen)
+func instantiateRouter(c *cli.Context, userService *services.UserService, idg *idgen.IdGenerator, assetStore static.AssetStore, pushMessenger *push.PushMessenger, stat *model.Status) (http.Handler, error) {
+
+	tokenPassword := c.String("token-password")
 	loginHandler := auth.Login(userService, tokenPassword)
 	logoutHandler := auth.Logout()
 	whoami := auth.Whoami()
@@ -264,16 +336,14 @@ func instantiateRouter(db model.Database, tokenPassword string) (http.Handler, e
 	authenticator := auth.NewAuthenticator(tokenPassword)
 	authorizerUsers := auth.NewAuthorizer(model.RoleNameUser)
 
-	staticHandler := static.Handler()
-	stat, errStatus := makeStatus()
-	if errStatus != nil {
-		return nil, errStatus
-	}
+	staticHandler := static.Handler(assetStore)
 
 	statusHandler, errStatusHandler := status.Handler(stat)
 	if errStatusHandler != nil {
 		return nil, errStatusHandler
 	}
+
+	sseHandler := sse.Handler(pushMessenger)
 
 	return router.Router(router.Options{
 		Authenticator:   authenticator,
@@ -281,22 +351,28 @@ func instantiateRouter(db model.Database, tokenPassword string) (http.Handler, e
 		ChangePassword:  changepassword,
 		ChangeUsername:  changeusername,
 		ChangeProfile:   changeprofile,
-		IdGenerator:     idgen,
+		IdGenerator:     idg,
 		Login:           loginHandler,
 		Logout:          logoutHandler,
+		Notifier:        sseHandler,
 		Static:          staticHandler,
 		Status:          statusHandler,
 		Whoami:          whoami,
 	})
 }
 
-func instantiateWebService(serverAddr, serverCertFile, serverKeyFile, serverCAFile string, handler http.Handler) (*web.Service, error) {
+func instantiateWebService(c *cli.Context, handler http.Handler) (*web.Service, error) {
+	serverAddr := c.String("server-addr")
+	serverCertFile := c.String("server-cert")
+	serverKeyFile := c.String("server-key")
+	serverCAFile := c.String("server-ca")
 	return web.New(handler, serverAddr, serverCertFile, serverKeyFile, serverCAFile), nil
 }
 
-func connectDatabase(ctx context.Context, postgresURL string) (db *sqlx.DB, err error) {
+func connectDatabase(c *cli.Context, logger *zerolog.Logger) (db *sqlx.DB, err error) {
 
-	logger := log.With().Str("component", "main").Str("fn", "connectDatabase").Logger()
+	postgresURL := c.String("postgres-url")
+	ctx, _ := context.WithTimeout(context.Background(), dbConnectionTimeout)
 	backoff := time.Second
 
 Loop:
@@ -315,12 +391,12 @@ Loop:
 		select {
 		case <-t.C:
 			t.Stop()
-			logger.Debug().Str("backoff", backoff.String()).Msg("backoff triggered")
+			// logger.Debug().Str("backoff", backoff.String()).Msg("backoff triggered")
 			backoff *= 2
 			continue
 		case <-ctx.Done():
 			t.Stop()
-			logger.Debug().Msg("cancel triggered")
+			// logger.Debug().Msg("cancelled")
 			break Loop
 		}
 
@@ -345,4 +421,15 @@ func makeStatus() (*model.Status, error) {
 		StartTime:   StartTime,
 	}, nil
 
+}
+
+func formatParams(c *cli.Context) map[string]string {
+	result := make(map[string]string)
+	for _, flag := range c.App.Flags {
+		result[flag.GetName()] = c.GlobalString(flag.GetName())
+	}
+	for _, flag := range c.Command.Flags {
+		result[flag.GetName()] = c.GlobalString(flag.GetName())
+	}
+	return result
 }

@@ -26,12 +26,6 @@ export const menu: IMenuItem[] = [
         icon: <DashboardIcon/>,
     },
     {
-        id: "about",
-        name: "About",
-        path: "/about/",
-        icon: <InfoIcon/>,
-    },
-    {
         id: "logout",
         name: "Logout",
         path: "/logout",

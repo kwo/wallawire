@@ -1,11 +1,12 @@
 package user
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
 
-	"wallawire/ctxutil"
+	"wallawire/logging"
 )
 
 const (
@@ -14,8 +15,8 @@ const (
 	mimeTypeJson   = "application/json"
 )
 
-func sendJsonMessage(w http.ResponseWriter, statusCode int, message string) {
-	logger := ctxutil.NewLogger("sendJsonMessage", "", nil)
+func sendJsonMessage(ctx context.Context, w http.ResponseWriter, statusCode int, message string) {
+	logger := logging.New(ctx, "sendJsonMessage")
 	if len(message) == 0 {
 		message = http.StatusText(statusCode)
 	}

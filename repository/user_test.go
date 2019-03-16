@@ -1,4 +1,4 @@
-package repositories_test
+package repository_test
 
 import (
 	"context"
@@ -7,10 +7,9 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/lib/pq"
-
+	"wallawire/idgen"
 	"wallawire/model"
-	"wallawire/repositories"
+	"wallawire/repository"
 )
 
 const (
@@ -20,14 +19,6 @@ const (
 	roleIDReporter   = "b62a31ac-97ab-472c-8908-0e189ea3994e"
 	roleIDCopywriter = "6062c2d0-98ce-4cfe-a33d-29590406f25b"
 	roleIDStaff      = "f9ce6462-1d65-4223-ac08-5e29ae93d918"
-)
-
-var (
-	now   = time.Now().Truncate(time.Second)
-	now1h = now.Add(time.Hour * 1)
-	now2h = now.Add(time.Hour * 2)
-	now3d = now.Add(time.Hour * 24 * 3)
-	now5d = now.Add(time.Hour * 24 * 5)
 )
 
 func init() {
@@ -104,8 +95,8 @@ func TestUser(b *testing.T) {
 		},
 	}
 
-	database := repositories.NewDatabase(db)
-	us := repositories.NewUserRepository()
+	database := repository.NewDatabase(db)
+	us := repository.New(idgen.NewUUIDGenerator())
 
 	for _, tc := range testCases {
 
@@ -178,7 +169,7 @@ func TestUser(b *testing.T) {
 
 }
 
-func TestGetUser(t *testing.T) {
+func TestGetUser(b *testing.T) {
 
 	testCases := []struct {
 		Alias            string
@@ -216,12 +207,12 @@ func TestGetUser(t *testing.T) {
 		},
 	}
 
-	database := repositories.NewDatabase(db)
-	us := repositories.NewUserRepository()
+	database := repository.NewDatabase(db)
+	us := repository.New(idgen.NewUUIDGenerator())
 
 	for _, tc := range testCases {
 
-		testFn := func(tt *testing.T) {
+		testFn := func(t *testing.T) {
 
 			err := database.Run(func(tx model.Transaction) error {
 
@@ -230,10 +221,10 @@ func TestGetUser(t *testing.T) {
 				// Get
 				u, errGet := us.GetUser(ctx, tx, tc.UserID)
 				if errGet != tc.ExpectedGetError {
-					tt.Errorf("Bad get error: %s, expected %s", errGet, tc.ExpectedGetError)
+					t.Errorf("Bad get error: %s, expected %s", errGet, tc.ExpectedGetError)
 				}
 				if !reflect.DeepEqual(u, tc.User) {
-					tt.Errorf("Bad user: %v, expected %v", u, tc.User)
+					t.Errorf("Bad user: %v, expected %v", u, tc.User)
 				}
 
 				return nil // always nil, so don't test database.Run return value
@@ -241,18 +232,18 @@ func TestGetUser(t *testing.T) {
 			})
 
 			if err != nil {
-				tt.Error(err)
+				t.Error(err)
 			}
 
 		}
 
-		t.Run(tc.Alias, testFn)
+		b.Run(tc.Alias, testFn)
 
 	}
 
 }
 
-func TestGetActiveUserByUsername(t *testing.T) {
+func TestGetActiveUserByUsername(b *testing.T) {
 
 	testCases := []struct {
 		Alias            string
@@ -282,12 +273,12 @@ func TestGetActiveUserByUsername(t *testing.T) {
 		},
 	}
 
-	database := repositories.NewDatabase(db)
-	us := repositories.NewUserRepository()
+	database := repository.NewDatabase(db)
+	us := repository.New(idgen.NewUUIDGenerator())
 
 	for _, tc := range testCases {
 
-		testFn := func(tt *testing.T) {
+		testFn := func(t *testing.T) {
 
 			err := database.Run(func(tx model.Transaction) error {
 
@@ -296,10 +287,10 @@ func TestGetActiveUserByUsername(t *testing.T) {
 				// Get
 				u, errGet := us.GetActiveUserByUsername(ctx, tx, tc.Username)
 				if errGet != tc.ExpectedGetError {
-					tt.Errorf("Bad get error: %s, expected %s", errGet, tc.ExpectedGetError)
+					t.Errorf("Bad get error: %s, expected %s", errGet, tc.ExpectedGetError)
 				}
 				if !reflect.DeepEqual(u, tc.User) {
-					tt.Errorf("Bad user: %v, expected %v", u, tc.User)
+					t.Errorf("Bad user: %v, expected %v", u, tc.User)
 				}
 
 				return nil // always nil, so don't test database.Run return value
@@ -307,18 +298,18 @@ func TestGetActiveUserByUsername(t *testing.T) {
 			})
 
 			if err != nil {
-				tt.Error(err)
+				t.Error(err)
 			}
 
 		}
 
-		t.Run(tc.Alias, testFn)
+		b.Run(tc.Alias, testFn)
 
 	}
 
 }
 
-func TestIsUsernameAvailable(t *testing.T) {
+func TestIsUsernameAvailable(b *testing.T) {
 
 	testCases := []struct {
 		Alias          string
@@ -352,12 +343,12 @@ func TestIsUsernameAvailable(t *testing.T) {
 		},
 	}
 
-	database := repositories.NewDatabase(db)
-	us := repositories.NewUserRepository()
+	database := repository.NewDatabase(db)
+	us := repository.New(idgen.NewUUIDGenerator())
 
 	for _, testCase := range testCases {
 
-		testFn := func(tt *testing.T) {
+		testFn := func(t *testing.T) {
 
 			err := database.Run(func(tx model.Transaction) error {
 
@@ -376,12 +367,12 @@ func TestIsUsernameAvailable(t *testing.T) {
 			})
 
 			if err != nil {
-				tt.Error(err)
+				t.Error(err)
 			}
 
 		}
 
-		t.Run(testCase.Alias, testFn)
+		b.Run(testCase.Alias, testFn)
 
 	}
 
@@ -497,8 +488,8 @@ func TestGetUserRoles(b *testing.T) {
 		},
 	}
 
-	database := repositories.NewDatabase(db)
-	us := repositories.NewUserRepository()
+	database := repository.NewDatabase(db)
+	us := repository.New(idgen.NewUUIDGenerator())
 
 	for _, tCase := range testCases {
 
@@ -611,8 +602,8 @@ func TestSetUserRoles(b *testing.T) {
 		},
 	}
 
-	database := repositories.NewDatabase(db)
-	us := repositories.NewUserRepository()
+	database := repository.NewDatabase(db)
+	us := repository.New(idgen.NewUUIDGenerator())
 
 	for _, tCase := range testCases {
 

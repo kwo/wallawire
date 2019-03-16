@@ -5,7 +5,6 @@ import { withRouter, Redirect, Route, RouteComponentProps } from "react-router";
 import { Switch } from "react-router-dom";
 
 import { menu } from "../menu";
-import { About } from "./About";
 import { App } from "./App";
 import { Hello } from "./Hello";
 import { Login } from "./Login";
@@ -39,8 +38,13 @@ interface IAuthStore {
     logout(): Promise<any>;
 }
 
-interface IStatusStore {
+interface IMessageStore {
     start: () => void;
+    stop: () => void;
+}
+
+interface IStatusStore {
+    refresh: () => void;
 }
 
 @inject("appStore", "authStore", "statusStore")
@@ -52,7 +56,7 @@ class BaseRoot extends React.Component<IRootProps, {}> {
     }
 
     public componentDidMount() {
-        this.props.statusStore!.start();
+        this.props.statusStore!.refresh();
     }
 
     public render() {
@@ -78,7 +82,6 @@ class BaseRoot extends React.Component<IRootProps, {}> {
                 <Switch>
                     <InternalRoute path="/" exact={true} strict={true}
                         render={(props: RouteComponentProps) => <Hello caption="Welcome" />} />
-                    <InternalRoute path="/about" exact={false} strict={true} component={About} />
                     <InternalRoute path="/login" exact={true} strict={true}
                         render={(props: RouteComponentProps) =>
                             <Login

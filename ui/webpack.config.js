@@ -15,6 +15,10 @@ const getConfig = function (e, env) {
         CERTS: 'certs/',
     };
 
+    const VERSION = env.VERSION || new GitRevisionPlugin({
+        versionCommand: 'describe --always --tags --dirty="*"'
+    }).version();
+
     const config = {
 
         bail: true,
@@ -74,46 +78,24 @@ const getConfig = function (e, env) {
         },
 
         plugins: [
-            new CleanWebpackPlugin([paths.DST]),
+            new CleanWebpackPlugin(),
             new TSLintPlugin({
                 files: [paths.SRC + '/**/*.ts', paths.SRC + '/**/*.tsx'],
-
             }),
             new HtmlWebpackPlugin({
                 template: path.join(paths.SRC, 'index.html'),
             }),
             new InterpolateHtmlPlugin({
-                'VERSION': new GitRevisionPlugin({
-                    versionCommand: 'describe --always --tags --dirty="*"'
-                }).version(),
+                'VERSION': VERSION,
             })
         ]
     };
 
     if (env.mode !== 'production') {
-        config.devServer = {
-            host: 'localhost',
-            port: 4444,
-            contentBase: 'public/',
-            compress: true,
-            historyApiFallback: true,
-            stats: 'minimal',
-            https: {
-                key: fs.readFileSync(`${paths.CERTS}/server.key`),
-                cert: fs.readFileSync(`${paths.CERTS}/server.crt`),
-                ca: fs.readFileSync(`${paths.CERTS}/ca.crt`),
-            },
-            before: (app) => {
-                const morgan = require('morgan');
-                app.use(morgan('dev'));
-            },
-            proxy: [
-                {
-                    context: ['/api/**'],
-                    target: 'https://localhost:8888',
-                    secure: false
-                }
-            ]
+        config.watch = true;
+        config.watchOptions = {
+            aggregateTimeout: 300,
+            poll: 1000
         };
     }
 

@@ -11,7 +11,7 @@ RUN mkdir /user \
 # Install the Certificate-Authority certificates for the app to be able to make
 # calls to HTTPS endpoints.
 RUN apk add --no-cache ca-certificates curl \
- && curl https://binaries.cockroachdb.com/cockroach-v2.1.4.linux-musl-amd64.tgz | tar --strip-components=1 -xz \
+ && curl https://binaries.cockroachdb.com/cockroach-v2.1.5.linux-musl-amd64.tgz | tar --strip-components=1 -xz \
  && chmod 755 cockroach
 
 # Final stage: the running container.

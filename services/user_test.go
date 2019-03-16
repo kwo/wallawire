@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"wallawire/ctxutil"
+	"wallawire/idgen"
 	"wallawire/model"
 	"wallawire/services"
 )
@@ -202,10 +202,7 @@ func TestChangeUsername(b *testing.T) {
 
 		testFn := func(t *testing.T) {
 
-			idgen, errGen := ctxutil.NewIdGenerator()
-			if errGen != nil {
-				t.Fatal(errGen)
-			}
+			idg := idgen.NewIdGenerator()
 
 			db := &DatabaseMock{}
 			userRepo := &UserRepositoryMock{
@@ -215,9 +212,9 @@ func TestChangeUsername(b *testing.T) {
 				GetError:       tCase.OutputGetError,
 				SetError:       tCase.OutputSetError,
 			}
-			userService := services.NewUserService(db, userRepo, idgen)
+			userService := services.NewUserService(db, userRepo, idg)
 			ctx := context.Background()
-			ctx = context.WithValue(ctx, ctxutil.UserKey, tCase.RequestSessionToken)
+			ctx = context.WithValue(ctx, model.UserKey, tCase.RequestSessionToken)
 
 			rsp := userService.ChangeUsername(ctx, tCase.Request)
 
@@ -395,7 +392,7 @@ func TestChangeProfile(b *testing.T) {
 			}
 			userService := services.NewUserService(db, userRepo, nil) // idgen only used for login
 			ctx := context.Background()
-			ctx = context.WithValue(ctx, ctxutil.UserKey, tCase.RequestSessionToken)
+			ctx = context.WithValue(ctx, model.UserKey, tCase.RequestSessionToken)
 
 			rsp := userService.ChangeProfile(ctx, tCase.Request)
 
@@ -596,7 +593,7 @@ func TestChangePassword(b *testing.T) {
 			}
 			userService := services.NewUserService(db, userRepo, nil) // only used in login
 			ctx := context.Background()
-			ctx = context.WithValue(ctx, ctxutil.UserKey, tCase.RequestSessionToken)
+			ctx = context.WithValue(ctx, model.UserKey, tCase.RequestSessionToken)
 
 			rsp := userService.ChangePassword(ctx, tCase.Request)
 

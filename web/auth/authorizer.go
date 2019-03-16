@@ -3,7 +3,8 @@ package auth
 import (
 	"net/http"
 
-	"wallawire/ctxutil"
+	"wallawire/logging"
+	"wallawire/model"
 )
 
 // NewAuthorizer returns middleware to forbid users without ALL the specified roles
@@ -12,8 +13,8 @@ func NewAuthorizer(roles ...string) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 			ctx := r.Context()
-			logger := ctxutil.NewLogger("auth", "Authorizer", ctx)
-			user := ctxutil.TokenFromContext(r.Context()) // guarenteed to always be not nil
+			logger := logging.New(ctx, "auth", "Authorizer")
+			user := model.TokenFromContext(r.Context()) // guarenteed to always be not nil
 
 			for _, role := range roles {
 				if !user.HasRole(role) {

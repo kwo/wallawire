@@ -9,7 +9,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/jwtauth"
 
-	"wallawire/ctxutil"
+	"wallawire/logging"
 	"wallawire/model"
 )
 
@@ -29,7 +29,7 @@ func tokenToUser() func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 			ctx := r.Context()
-			logger := ctxutil.NewLogger("auth", "Authenticator", ctx)
+			logger := logging.New(ctx, "auth", "Authenticator")
 
 			_, claims, err := jwtauth.FromContext(ctx)
 			if err != nil {
@@ -82,7 +82,7 @@ func tokenToUser() func(next http.Handler) http.Handler {
 				}
 			}
 
-			ctx = context.WithValue(r.Context(), ctxutil.UserKey, *user)
+			ctx = context.WithValue(r.Context(), model.UserKey, *user)
 			logger.Info().Str("UserID", user.ID).Str("SessionID", user.SessionID).Msg("authenticated")
 
 			next.ServeHTTP(w, r.WithContext(ctx))

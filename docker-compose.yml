@@ -27,10 +27,7 @@ services:
     environment:
       WALLAWIRE_LOG_DEBUG: "true"
       WALLAWIRE_LOG_PRETTY: "true"
-      WALLAWIRE_POSTGRES_CA: "/mnt/certsdb/ca.crt"
-      WALLAWIRE_POSTGRES_CERT: "/mnt/certsdb/client.wallawire.crt"
-      WALLAWIRE_POSTGRES_KEY: "/mnt/certsdb/client.wallawire.key"
-      WALLAWIRE_POSTGRES_URL: "postgresql://wallawire@db:5432/wallawire"
+      WALLAWIRE_POSTGRES_URL: "postgresql://wallawire@localhost:5432/wallawire?sslmode=verify-full&sslcert=/mnt/certsdb/client.wallawire.crt&sslkey=/mnt/certsdb/client.wallawire.key&sslrootcert=/mnt/certsdb/ca.crt"
       WALLAWIRE_SERVER_ADDR: "0.0.0.0:8888"
       WALLAWIRE_SERVER_CA: "/mnt/certshttp/ca.crt"
       WALLAWIRE_SERVER_CERT: "/mnt/certshttp/server.crt"

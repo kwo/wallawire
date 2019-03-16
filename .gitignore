@@ -1,8 +1,8 @@
-/assets/
 /public
 /ui/certs
 /ui/node_modules
 /ui/public
+/web/assets
 /walladata
 /wallawire
 /wallawire-ca.crt

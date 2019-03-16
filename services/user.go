@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"wallawire/ctxutil"
+	"wallawire/logging"
 	"wallawire/model"
 )
 
@@ -58,7 +58,7 @@ func NewUserService(db model.Database, userRepo UserRepository, idgen IdGenerato
 
 func (z *UserService) ChangeUsername(ctx context.Context, req model.ChangeUsernameRequest) model.ChangeUsernameResponse {
 
-	logger := ctxutil.NewLogger(componentUserService, "ChangeUsername", ctx)
+	logger := logging.New(ctx, componentUserService, "ChangeUsername")
 
 	var user *model.User
 	var roles []model.UserRole
@@ -120,7 +120,7 @@ func (z *UserService) ChangeUsername(ctx context.Context, req model.ChangeUserna
 		}
 	} else {
 		logger.Debug().Msg("username updated")
-		suc := ctxutil.TokenFromContext(ctx)
+		suc := model.TokenFromContext(ctx)
 		su := model.ToSessionToken(suc.SessionID, user, roles, suc.Issued, suc.Expires)
 		rsp.Code = http.StatusOK
 		rsp.SessionToken = su
@@ -132,7 +132,7 @@ func (z *UserService) ChangeUsername(ctx context.Context, req model.ChangeUserna
 
 func (z *UserService) ChangePassword(ctx context.Context, req model.ChangePasswordRequest) model.ChangePasswordResponse {
 
-	logger := ctxutil.NewLogger(componentUserService, "ChangePassword", ctx)
+	logger := logging.New(ctx, componentUserService, "ChangePassword")
 
 	var user *model.User
 	var roles []model.UserRole
@@ -183,7 +183,7 @@ func (z *UserService) ChangePassword(ctx context.Context, req model.ChangePasswo
 		}
 	} else {
 		logger.Debug().Msg("password updated")
-		suc := ctxutil.TokenFromContext(ctx)
+		suc := model.TokenFromContext(ctx)
 		su := model.ToSessionToken(suc.SessionID, user, roles, suc.Issued, suc.Expires)
 		rsp.Code = http.StatusOK
 		rsp.SessionToken = su
@@ -195,7 +195,7 @@ func (z *UserService) ChangePassword(ctx context.Context, req model.ChangePasswo
 
 func (z *UserService) ChangeProfile(ctx context.Context, req model.ChangeProfileRequest) model.ChangeProfileResponse {
 
-	logger := ctxutil.NewLogger(componentUserService, "ChangeProfile", ctx)
+	logger := logging.New(ctx, componentUserService, "ChangeProfile")
 
 	var user *model.User
 	var roles []model.UserRole
@@ -248,7 +248,7 @@ func (z *UserService) ChangeProfile(ctx context.Context, req model.ChangeProfile
 	} else {
 		logger.Debug().Msg("profile updated")
 		rsp.Code = http.StatusOK
-		suc := ctxutil.TokenFromContext(ctx)
+		suc := model.TokenFromContext(ctx)
 		su := model.ToSessionToken(suc.SessionID, user, roles, suc.Issued, suc.Expires)
 		rsp.SessionToken = su
 	}
@@ -259,7 +259,7 @@ func (z *UserService) ChangeProfile(ctx context.Context, req model.ChangeProfile
 
 func (z *UserService) Login(ctx context.Context, req model.LoginRequest) model.LoginResponse {
 
-	logger := ctxutil.NewLogger(componentUserService, "Login", ctx)
+	logger := logging.New(ctx, componentUserService, "Login")
 
 	// db username field is 64, go bcrypt max is 72
 	if x, y := len(req.Username), len(req.Password); x == 0 || y == 0 || x > 64 || y > 72 {

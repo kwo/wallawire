@@ -1,9 +1,8 @@
-package repositories
+package repository
 
 import (
 	"context"
 	"database/sql"
-	neturl "net/url"
 	"strings"
 	"time"
 
@@ -16,19 +15,6 @@ func NewDatabase(db *sqlx.DB) model.Database {
 	return &database{
 		db: db,
 	}
-}
-
-func BuildPostgresURL(url, cert, key, ca string) string {
-
-	values := neturl.Values{}
-
-	values.Add("sslmode", "verify-full")
-	values.Add("sslcert", cert)
-	values.Add("sslkey", key)
-	values.Add("sslrootcert", ca)
-
-	return url + "?" + values.Encode()
-
 }
 
 type database struct {
@@ -74,8 +60,9 @@ func toNullString(value string) sql.NullString {
 	}
 }
 
-func toTimeInteger(value *time.Time) sql.NullInt64 {
-	if value == nil {
+// converts a time pointer to sql null integer, returning a null sql integer if the time is nil or IsZero
+func toNullTimeInteger(value *time.Time) sql.NullInt64 {
+	if value == nil || value.IsZero() {
 		return sql.NullInt64{}
 	}
 	return sql.NullInt64{
@@ -84,10 +71,18 @@ func toTimeInteger(value *time.Time) sql.NullInt64 {
 	}
 }
 
-func toTimePointer(value sql.NullInt64) *time.Time {
+// converts an sql null integer to a time struct, returning a zero time if the sql value is null
+func toTime(value sql.NullInt64) time.Time {
 	if !value.Valid {
+		return time.Time{}
+	}
+	return time.Unix(value.Int64, 0).UTC()
+}
+
+// converts a time to a time pointer, returning nil if the time IsZero
+func toTimePointer(value time.Time) *time.Time {
+	if value.IsZero() {
 		return nil
 	}
-	x := time.Unix(value.Int64, 0).UTC()
-	return &x
+	return &value
 }

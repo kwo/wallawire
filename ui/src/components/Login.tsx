@@ -162,7 +162,6 @@ class BaseLogin extends React.Component<ILoginProps, {}> {
         setLoading(true);
 
         return this.props.authStore!.login(username, password).then((rsp: IAuthResponse) => {
-            console.debug("doLogin", rsp); // tslint:disable-line:no-console
             setLoading(false);
             if (rsp.status === AuthStatus.Success) {
                 // set in Root.AllowableRoute

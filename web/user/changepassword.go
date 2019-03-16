@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"wallawire/ctxutil"
+	"wallawire/logging"
 	"wallawire/model"
 	"wallawire/web/auth"
 )
@@ -20,21 +20,21 @@ func ChangePassword(userService ChangePasswordService, tokenPassword string) htt
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		logger := ctxutil.NewLogger("ChangePasswordHandler", "", ctx)
+		logger := logging.New(ctx, "ChangePasswordHandler")
 		logger.Debug().Msg("invoked")
 
-		sessionToken := ctxutil.TokenFromContext(r.Context())
+		sessionToken := model.TokenFromContext(r.Context())
 		if len(sessionToken.ID) == 0 {
 			msg := "cannot retrieve user from context"
 			logger.Error().Msg(msg)
-			sendJsonMessage(w, http.StatusUnauthorized, msg)
+			sendJsonMessage(ctx, w, http.StatusUnauthorized, msg)
 			return
 		}
 
 		if r.Header.Get(hContentType) != mimeTypeJson {
 			msg := "bad or missing content type"
 			logger.Debug().Str(hContentType, r.Header.Get(hContentType)).Msg(msg)
-			sendJsonMessage(w, http.StatusBadRequest, msg)
+			sendJsonMessage(ctx, w, http.StatusBadRequest, msg)
 			return
 		}
 
@@ -42,7 +42,7 @@ func ChangePassword(userService ChangePasswordService, tokenPassword string) htt
 		if errBody != nil {
 			msg := "cannot read request"
 			logger.Debug().Err(errBody).Msg(msg)
-			sendJsonMessage(w, http.StatusBadRequest, msg)
+			sendJsonMessage(ctx, w, http.StatusBadRequest, msg)
 			return
 		}
 		defer r.Body.Close()
@@ -51,7 +51,7 @@ func ChangePassword(userService ChangePasswordService, tokenPassword string) htt
 		if err := json.Unmarshal(body, &req); err != nil {
 			msg := "bad json payload"
 			logger.Debug().Err(err).Msg(msg)
-			sendJsonMessage(w, http.StatusBadRequest, msg)
+			sendJsonMessage(ctx, w, http.StatusBadRequest, msg)
 			return
 		}
 
@@ -67,7 +67,7 @@ func ChangePassword(userService ChangePasswordService, tokenPassword string) htt
 			if errToken != nil {
 				msg := "cannot create JWT"
 				logger.Error().Err(errToken).Msg(msg)
-				sendJsonMessage(w, http.StatusInternalServerError, msg)
+				sendJsonMessage(ctx, w, http.StatusInternalServerError, msg)
 				return
 			}
 
@@ -82,7 +82,7 @@ func ChangePassword(userService ChangePasswordService, tokenPassword string) htt
 
 		}
 
-		sendJsonMessage(w, rsp.Code, rsp.Message)
+		sendJsonMessage(ctx, w, rsp.Code, rsp.Message)
 
 	})
 }

@@ -1,4 +1,4 @@
-package repositories_test
+package repository_test
 
 import (
 	"os"
@@ -9,24 +9,38 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 
-	"wallawire/ctxutil"
-	"wallawire/repositories"
+	"wallawire/idgen"
+	"wallawire/logging"
 )
 
 const (
-	postgresTestURL  = "postgresql://wallawire@localhost:5432/wallawire"
-	postgresUserCert = "../walladata/certs/dbclient/client.wallawire.crt"
-	postgresUserKey  = "../walladata/certs/dbclient/client.wallawire.key"
-	postgresCACert   = "../walladata/certs/dbclient/ca.crt"
+	postgresTestURL = "postgresql://wallawire@localhost:5432/wallawire?sslmode=verify-full&sslcert=../walladata/certs/dbclient/client.wallawire.crt&sslkey=../walladata/certs/dbclient/client.wallawire.key&sslrootcert=../walladata/certs/dbclient/ca.crt"
 )
 
 var (
 	db           *sqlx.DB
-	dbLogger     = ctxutil.NewLogger("DatabaseTest", "", nil)
+	dbLogger     = logging.New(nil, "DatabaseTest")
+	idg          = idgen.NewUUIDGenerator()
 	stmtLock     sync.Mutex
 	stmtSetup    []string
 	stmtTeardown []string
 )
+
+var (
+	now   = time.Now().Truncate(time.Second)
+	now1h = now.Add(time.Hour * 1)
+	now2h = now.Add(time.Hour * 2)
+	now3d = now.Add(time.Hour * 24 * 3)
+	now5d = now.Add(time.Hour * 24 * 5)
+)
+
+type IdGenMock struct {
+	ID string
+}
+
+func (z *IdGenMock) NewID() string {
+	return z.ID
+}
 
 func TestMain(m *testing.M) {
 	var rc int
@@ -35,8 +49,8 @@ func TestMain(m *testing.M) {
 		dbLogger.Error().Err(err).Msg("setup failed")
 	} else {
 		rc = m.Run()
-		teardown()
 	}
+	teardown()
 	os.Exit(rc)
 }
 
@@ -48,8 +62,7 @@ func TestFoo(t *testing.T) {
 }
 
 func setup() error {
-	url := repositories.BuildPostgresURL(postgresTestURL, postgresUserCert, postgresUserKey, postgresCACert)
-	x, errOpen := sqlx.Open("postgres", url)
+	x, errOpen := sqlx.Open("postgres", postgresTestURL)
 	if errOpen != nil {
 		return errOpen
 	}

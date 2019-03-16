@@ -1,5 +1,6 @@
-FROM ww/ui:latest AS ui
-FROM ww/golang:latest AS builder
+ARG REPO="ww/"
+FROM ${REPO}ui:latest AS ui
+FROM ${REPO}golang:latest AS builder
 
 RUN mkdir /user \
  && echo 'nobody:x:65534:65534:nobody:/:' > /user/passwd \
@@ -8,9 +9,7 @@ RUN mkdir /user \
  && mkdir -p /mnt/certsdb   && chown nobody:nobody /mnt/certsdb
 
 # Set the working directory outside $GOPATH to enable the support for modules.
-WORKDIR /src
-
-# Import the code from the context.
+WORKDIR /ww
 COPY ./ ./
 COPY --from=ui /public ./public
 
@@ -18,7 +17,7 @@ COPY --from=ui /public ./public
 RUN go mod download
 RUN go generate ./...
 
-# Build the executable to `/app`. Mark the build as statically linked.
+# Build the executable to `/wallawire`. Mark the build as statically linked.
 RUN ./scripts/build.sh
 
 # Final stage: the running container.
@@ -28,7 +27,7 @@ COPY --from=builder /user/group /user/passwd /etc/
 COPY --from=builder /mnt/certshttp /mnt/certshttp
 COPY --from=builder /mnt/certsdb   /mnt/certsdb
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /src/wallawire /wallawire
+COPY --from=builder /ww/wallawire /wallawire
 
 EXPOSE 8888
 VOLUME /mnt/certshttp

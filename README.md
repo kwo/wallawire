@@ -1,12 +1,36 @@
 # Wallawire
 
-## Build
+## Local
 
-### Local Build
+### Build
 
     make
 
-### Docker Build
+### Run
+
+Once:
+
+    mkdir -p walladata/db
+    ./scripts/create-certs.sh
+    cockroach start --host=0.0.0.0 --port=5432 --http-port=8080 --store=path=./walladata/db --certs-dir=./walladata/certs/dbserver 
+    ./scripts/create-database.sh
+    Ctrl-c
+
+thereafter:
+
+    cockroach start --host=0.0.0.0 --port=5432 --http-port=8080 --store=path=./walladata/db --certs-dir=./walladata/certs/dbserver 
+    . .testenv
+    go run main.go
+
+optionally start the ui in dev mode
+
+    cd ui
+    yarn start
+
+
+## Docker
+
+### Build
 
 Once:
 
@@ -16,26 +40,22 @@ Once:
 
 thereafter:
 
-    docker build -t ww/ui:latest -f Dockerfile.ui .
+    docker build -t ww/ui:latest --build-arg VERSION=$(git describe --always --tags --dirty="*") ui
     docker build -t wallawire:latest .
 
-## Run
+### Run
 
 Once:
 
     mkdir -p walladata/db
     ./scripts/create-certs.sh
-    make up
+    docker-compose up db -d
     ./scripts/create-database.sh
-    make down
+    docker-compose down
 
 thereafter:
 
-    make up
-    make logs
+    docker-compose up -d
+    docker-compose logs -f
     ...
-    make down
-    
-Teardown and reinitialize database:
-
-    ./scripts/reinit-database.sh
+    docker-compose down

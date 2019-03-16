@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-chi/chi"
+
 	"wallawire/model"
 	"wallawire/web/auth"
 	"wallawire/web/user"
-
-	"github.com/go-chi/chi"
 )
 
 func TestChangeProfile(b *testing.T) {

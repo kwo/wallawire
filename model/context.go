@@ -1,9 +1,7 @@
-package ctxutil
+package model
 
 import (
 	"context"
-
-	"wallawire/model"
 )
 
 const (
@@ -20,11 +18,11 @@ func CorrelationIDFromContext(ctx context.Context) string {
 	return ""
 }
 
-func TokenFromContext(ctx context.Context) model.SessionToken {
+func TokenFromContext(ctx context.Context) SessionToken {
 	if value := ctx.Value(UserKey); value != nil {
-		if user, ok := value.(model.SessionToken); ok {
+		if user, ok := value.(SessionToken); ok {
 			return user
 		}
 	}
-	return model.SessionToken{}
+	return SessionToken{}
 }

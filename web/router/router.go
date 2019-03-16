@@ -8,9 +8,9 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
-	"github.com/rs/zerolog/hlog"
 
-	"wallawire/ctxutil"
+	"wallawire/logging"
+	"wallawire/web/accesslog"
 	wallaware "wallawire/web/middleware"
 )
 
@@ -35,6 +35,7 @@ type Options struct {
 	IdGenerator     IdGenerator // because composing middleware in router
 	Login           http.HandlerFunc
 	Logout          http.HandlerFunc
+	Notifier        http.HandlerFunc
 	Static          http.HandlerFunc
 	Status          http.HandlerFunc
 	Whoami          http.HandlerFunc
@@ -44,52 +45,54 @@ func Router(opts Options) (http.Handler, error) {
 
 	// logger := log.With().Str("component", "router").Logger()
 
-	h := chi.NewRouter()
+	rMain := chi.NewRouter()
 
 	// global middleware
-	h.Use(wallaware.CorrelationID(opts.IdGenerator))
-	h.Use(hlog.AccessHandler(accessLogger()))
-	h.Use(middleware.Timeout(time.Second * 60))
-	// h.Use(middleware.CloseNotify) built-in to go1.8
+	rMain.Use(wallaware.CorrelationID(opts.IdGenerator))
+	rMain.Use(accesslog.AccessHandler(accessLogger()))
+	rMain.Use(noCache)
+	rMain.Use(middleware.SetHeader(hVary, hAcceptEncoding))
 	// TODO security middleware
-	h.Use(noCache)
-	// TODO h.Use(compression)
-	h.Use(middleware.SetHeader(hVary, hAcceptEncoding))
+	// TODO rMain.Use(compression)
 
 	// api router
-	h.Route("/api/*", func(r chi.Router) {
+	rMain.Route("/api/*", func(rApi chi.Router) {
 		// group for routes requiring authentication
-		r.Group(func(p chi.Router) {
-			p.Use(opts.Authenticator...)
-			p.Use(opts.AuthorizerUsers)
-			p.Post("/changepassword", opts.ChangePassword)
-			p.Post("/changeusername", opts.ChangeUsername)
-			p.Post("/changeprofile", opts.ChangeProfile)
-			p.Get("/whoami", opts.Whoami)
+		rApi.Group(func(rAuth chi.Router) {
+			rAuth.Use(opts.Authenticator...)
+			rAuth.Use(opts.AuthorizerUsers)
+			rAuth.Group(func(rTimeout chi.Router) {
+				rTimeout.Use(middleware.Timeout(time.Second * 60))
+				rTimeout.Post("/changepassword", opts.ChangePassword)
+				rTimeout.Post("/changeusername", opts.ChangeUsername)
+				rTimeout.Post("/changeprofile", opts.ChangeProfile)
+				rTimeout.Get("/whoami", opts.Whoami)
+			})
+			rAuth.Get("/inbox", opts.Notifier) // no timeout
 		})
 
-		r.Post("/login", opts.Login)
-		r.Get("/logout", opts.Logout)
-		r.Post("/logout", opts.Logout)
-		r.Get("/status", opts.Status)
-		r.NotFound(sendMessageHandler(http.StatusNotFound))
-		r.MethodNotAllowed(sendMessageHandler(http.StatusMethodNotAllowed))
+		rApi.Post("/login", opts.Login)
+		rApi.Get("/logout", opts.Logout)
+		rApi.Post("/logout", opts.Logout)
+		rApi.Get("/status", opts.Status)
+		rApi.NotFound(sendMessageHandler(http.StatusNotFound))
+		rApi.MethodNotAllowed(sendMessageHandler(http.StatusMethodNotAllowed))
 	})
 
 	// static router
-	h.Route("/*", func(r chi.Router) {
-		r.Get("/*", opts.Static)
-		r.MethodNotAllowed(sendMessageHandler(http.StatusMethodNotAllowed))
+	rMain.Route("/*", func(rStatic chi.Router) {
+		rStatic.Get("/*", opts.Static)
+		rStatic.MethodNotAllowed(sendMessageHandler(http.StatusMethodNotAllowed))
 	})
 
-	return h, nil
+	return rMain, nil
 
 }
 
 func accessLogger() func(r *http.Request, status, size int, duration time.Duration) {
 	return func(r *http.Request, status, size int, duration time.Duration) {
 		ctx := r.Context()
-		logger := ctxutil.NewLogger("accesslog", "", ctx)
+		logger := logging.New(ctx, "accesslog")
 		logger.Debug().
 			Str("method", r.Method).
 			Str("url", r.URL.String()).

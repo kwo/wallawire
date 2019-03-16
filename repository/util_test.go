@@ -1,4 +1,4 @@
-package repositories
+package repository
 
 import (
 	"reflect"
@@ -71,7 +71,7 @@ func TestGetComplement(b *testing.T) {
 
 		testFn := func(t *testing.T) {
 
-			us := &UserRepository{}
+			us := &Repository{}
 			result := us.findComplement(tCase.A, tCase.B)
 
 			if !reflect.DeepEqual(result, tCase.ExpectedResult) {

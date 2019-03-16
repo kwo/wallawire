@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-chi/chi"
+
 	"wallawire/model"
 	"wallawire/web/auth"
-
-	"github.com/go-chi/chi"
 )
 
 func TestLogin(t *testing.T) {

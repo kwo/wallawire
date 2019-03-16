@@ -2,8 +2,6 @@ import { action, observable } from "mobx";
 import { IServerStatus } from "../model/status";
 import { to } from "./util";
 
-const pollInterval = 60000; // once a minute
-
 const blankServerStatus = {
     service: "",
     version: "",
@@ -17,21 +15,10 @@ const blankServerStatus = {
 export class StatusStore {
     @observable public client = "";
     @observable public server = blankServerStatus;
-    private serverInterval: any;
 
-    @action public start = () => {
+    @action public refresh = () => {
         this.updateClientVersion();
         this.updateServerStatus();
-        if (!this.serverInterval) {
-            this.serverInterval = setInterval(this.updateServerStatus, pollInterval);
-        }
-    }
-
-    @action public stop = () => {
-        if (this.serverInterval) {
-            clearInterval(this.serverInterval);
-            this.serverInterval = null;
-        }
     }
 
     @action public setServerStatus(serverStatus: IServerStatus) {

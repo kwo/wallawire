@@ -5,16 +5,17 @@ import (
 	"net/http"
 	"strconv"
 
-	"wallawire/ctxutil"
+	"wallawire/logging"
+	"wallawire/model"
 )
 
 func Whoami() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		logger := ctxutil.NewLogger("auth", "WhoamiHandler", ctx)
+		logger := logging.New(ctx, "auth", "WhoamiHandler")
 
-		user := ctxutil.TokenFromContext(ctx)
+		user := model.TokenFromContext(ctx)
 		if len(user.ID) == 0 {
 			logger.Warn().Msg("cannot retrieve user from context")
 			sendMessage(w, http.StatusUnauthorized)

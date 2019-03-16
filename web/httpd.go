@@ -7,12 +7,12 @@ import (
 
 	"github.com/rs/zerolog"
 
-	"wallawire/ctxutil"
+	"wallawire/logging"
 )
 
 type Service struct {
 	httpd    *http.Server
-	logger   zerolog.Logger
+	logger   *zerolog.Logger
 	addr     string
 	certFile string
 	keyFile  string
@@ -25,7 +25,7 @@ func New(router http.Handler, addr, certFile, keyFile, caFile string) *Service {
 			Addr:    addr,
 			Handler: router,
 		},
-		logger:   ctxutil.NewLogger("httpd", "", nil),
+		logger:   logging.New(nil, "httpd"),
 		addr:     addr,
 		certFile: certFile,
 		keyFile:  keyFile,

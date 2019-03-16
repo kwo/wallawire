@@ -9,7 +9,7 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 
-	"wallawire/ctxutil"
+	"wallawire/logging"
 	"wallawire/model"
 )
 
@@ -20,7 +20,7 @@ type UserService interface {
 func Login(userService UserService, tokenPassword string) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		logger := ctxutil.NewLogger("auth", "LoginHandler", ctx)
+		logger := logging.New(ctx, "auth", "LoginHandler")
 		logger.Debug().Msg("invoked")
 
 		if r.Header.Get(hContentType) != mimeTypeJson {

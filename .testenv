@@ -1,9 +1,10 @@
+CERTS=$PWD/walladata/certs/dbclient
+export WALLAWIRE_PRODUCTION_MODE=false
+export WALLAWIRE_UI_LOCAL_PATH=public
 export WALLAWIRE_LOG_DEBUG=true
 export WALLAWIRE_LOG_PRETTY=true
-export WALLAWIRE_POSTGRES_CA=walladata/certs/dbclient/ca.crt
-export WALLAWIRE_POSTGRES_CERT=walladata/certs/dbclient/client.wallawire.crt
-export WALLAWIRE_POSTGRES_KEY=walladata/certs/dbclient/client.wallawire.key
-export WALLAWIRE_POSTGRES_URL=postgresql://wallawire@localhost:5432/wallawire
+export WALLAWIRE_POSTGRES_URL="postgresql://wallawire@localhost:5432/wallawire?sslmode=verify-full&sslcert=$CERTS/client.wallawire.crt&sslkey=$CERTS/client.wallawire.key&sslrootcert=$CERTS/ca.crt"
+export WALLAWIRE_POSTGRES_ROOT_URL="postgresql://root@localhost:5432/wallawire?sslmode=verify-full&sslcert=$CERTS/client.root.crt&sslkey=$CERTS/client.root.key&sslrootcert=$CERTS/ca.crt"
 export WALLAWIRE_SERVER_ADDR=0.0.0.0:8888
 export WALLAWIRE_SERVER_CA=walladata/certs/webserver/ca.crt
 export WALLAWIRE_SERVER_CERT=walladata/certs/webserver/server.crt

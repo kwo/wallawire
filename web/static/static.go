@@ -5,17 +5,24 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-
-	"wallawire/assets"
+	"time"
 )
 
 const (
-	hContentLength   = "Content-Length"
+	hContentLength = "Content-Length"
 )
 
-func Handler() http.HandlerFunc {
+type Asset interface {
+	Name() string
+	ModTime() time.Time
+	Data() []byte
+}
 
-	// logger := log.With().Str("component", "static").Logger()
+type AssetStore interface {
+	AssetFile(name string) Asset
+}
+
+func Handler(assets AssetStore) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 

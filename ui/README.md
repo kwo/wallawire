@@ -1,30 +1,9 @@
 # Wallawire UI
 
-## TODO
-
- - remove about
- - SSE
-
-## Technical Notes
-
 ### Build
 
     yarn install
     yarn build
-
-### Run
-
-As API calls are proxied to a running wallawire server instance port 8888, start the wallawire server in another console window.
-
-Once:
-
-    ./scripts/make-certs.sh
-
-thereafter:
-
-    yarn start
-    cd .. && make up
-
 
 ## Authentication Mechanism
 The client posts the username and password as JSON to the backend authentication endpoint.

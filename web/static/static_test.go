@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"wallawire/assets"
+	"wallawire/web/assets"
 	"wallawire/web/static"
 )
 
@@ -189,7 +189,8 @@ func TestStatic(t *testing.T) {
 
 		testFn := func(tt *testing.T) {
 
-			server := httptest.NewServer(static.Handler())
+			embeddedStore, _ := static.NewEmbeddedStore()
+			server := httptest.NewServer(static.Handler(embeddedStore))
 			defer server.Close()
 
 			client := &http.Client{

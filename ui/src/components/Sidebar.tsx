@@ -4,7 +4,6 @@ import { inject, observer } from "mobx-react";
 import * as React from "react";
 
 import { IMenuItem } from "../menu";
-import { IAuthResponse } from "../model/auth";
 import { Status } from "./Status";
 
 const styles = (theme: Theme) => createStyles({

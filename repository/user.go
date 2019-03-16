@@ -1,4 +1,4 @@
-package repositories
+package repository
 
 import (
 	"context"
@@ -7,22 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"wallawire/ctxutil"
+	"wallawire/logging"
 	"wallawire/model"
 )
 
 // TODO: missing role management: List,Set,Delete Roles
 // TODO: missing user List function
-
-const (
-	componantUserRepo = "UserRepository"
-)
-
-func NewUserRepository() *UserRepository {
-	return &UserRepository{}
-}
-
-type UserRepository struct{}
 
 type dbUser struct {
 	UserID       sql.NullString `db:"id"`
@@ -41,9 +31,9 @@ type dbUserRole struct {
 	ValidTo   sql.NullInt64  `db:"valid_to"`
 }
 
-func (z *UserRepository) GetUser(ctx context.Context, tx model.ReadOnlyTransaction, userID string) (*model.User, error) {
+func (z *Repository) GetUser(ctx context.Context, tx model.ReadOnlyTransaction, userID string) (*model.User, error) {
 
-	logger := ctxutil.NewLogger(componantUserRepo, "GetUser", ctx)
+	logger := logging.New(ctx, componentRepo, "GetUser")
 	logger.Debug().Msg("invoked")
 
 	query := `
@@ -62,7 +52,7 @@ func (z *UserRepository) GetUser(ctx context.Context, tx model.ReadOnlyTransacti
 
 	defer func() {
 		if err := rs.Close(); err != nil {
-			logger.Warn().Err(err).Msg("Cannot close resultset")
+			logger.Warn().Err(err).Msg("cannot close resultset")
 		}
 	}()
 
@@ -80,9 +70,9 @@ func (z *UserRepository) GetUser(ctx context.Context, tx model.ReadOnlyTransacti
 
 }
 
-func (z *UserRepository) GetActiveUserByUsername(ctx context.Context, tx model.ReadOnlyTransaction, username string) (*model.User, error) {
+func (z *Repository) GetActiveUserByUsername(ctx context.Context, tx model.ReadOnlyTransaction, username string) (*model.User, error) {
 
-	logger := ctxutil.NewLogger(componantUserRepo, "GetActiveUserByUsername", ctx)
+	logger := logging.New(ctx, componentRepo, "GetActiveUserByUsername")
 	logger.Debug().Str("username", username).Msg("invoked")
 
 	query := `
@@ -101,7 +91,7 @@ func (z *UserRepository) GetActiveUserByUsername(ctx context.Context, tx model.R
 
 	defer func() {
 		if err := rs.Close(); err != nil {
-			logger.Warn().Err(err).Msg("Cannot close resultset")
+			logger.Warn().Err(err).Msg("cannot close resultset")
 		}
 	}()
 
@@ -122,9 +112,9 @@ func (z *UserRepository) GetActiveUserByUsername(ctx context.Context, tx model.R
 
 }
 
-func (z *UserRepository) IsUsernameAvailable(ctx context.Context, tx model.ReadOnlyTransaction, username string) (bool, error) {
+func (z *Repository) IsUsernameAvailable(ctx context.Context, tx model.ReadOnlyTransaction, username string) (bool, error) {
 
-	logger := ctxutil.NewLogger(componantUserRepo, "IsUsernameAvailable", ctx)
+	logger := logging.New(ctx, componentRepo, "IsUsernameAvailable")
 	logger.Debug().Msg("invoked")
 
 	query := "SELECT username from usernames WHERE username = :username"
@@ -139,7 +129,7 @@ func (z *UserRepository) IsUsernameAvailable(ctx context.Context, tx model.ReadO
 
 	defer func() {
 		if err := rs.Close(); err != nil {
-			logger.Warn().Err(err).Msg("Cannot close resultset")
+			logger.Warn().Err(err).Msg("cannot close resultset")
 		}
 	}()
 
@@ -159,9 +149,9 @@ func (z *UserRepository) IsUsernameAvailable(ctx context.Context, tx model.ReadO
 }
 
 // SetUser will add or update a user except created and updated which are set automatically.
-func (z *UserRepository) SetUser(ctx context.Context, tx model.WriteOnlyTransaction, user model.User) error {
+func (z *Repository) SetUser(ctx context.Context, tx model.WriteOnlyTransaction, user model.User) error {
 
-	logger := ctxutil.NewLogger(componantUserRepo, "SetUser", ctx)
+	logger := logging.New(ctx, componentRepo, "SetUser")
 	logger.Debug().Msg("invoked")
 
 	query := `
@@ -181,9 +171,9 @@ func (z *UserRepository) SetUser(ctx context.Context, tx model.WriteOnlyTransact
 	return nil
 }
 
-func (z *UserRepository) DeleteUser(ctx context.Context, tx model.WriteOnlyTransaction, userID string) error {
+func (z *Repository) DeleteUser(ctx context.Context, tx model.WriteOnlyTransaction, userID string) error {
 
-	logger := ctxutil.NewLogger(componantUserRepo, "DeleteUser", ctx)
+	logger := logging.New(ctx, componentRepo, "DeleteUser")
 	logger.Debug().Msg("invoked")
 
 	errRoles := z.deleteUserRoles(tx, userID)
@@ -202,9 +192,9 @@ func (z *UserRepository) DeleteUser(ctx context.Context, tx model.WriteOnlyTrans
 
 // GetUserRoles returns all the roles for a user.
 // Only roles active at given time will be returned if parameter is non-nil.
-func (z *UserRepository) GetUserRoles(ctx context.Context, tx model.ReadOnlyTransaction, userID string, t *time.Time) ([]model.UserRole, error) {
+func (z *Repository) GetUserRoles(ctx context.Context, tx model.ReadOnlyTransaction, userID string, t *time.Time) ([]model.UserRole, error) {
 
-	logger := ctxutil.NewLogger(componantUserRepo, "GetUserRoles", ctx)
+	logger := logging.New(ctx, componentRepo, "GetUserRoles")
 	logger.Debug().Msg("invoked")
 
 	query := `
@@ -220,7 +210,7 @@ func (z *UserRepository) GetUserRoles(ctx context.Context, tx model.ReadOnlyTran
 	if t != nil {
 		query += `WHERE (ur.valid_from IS NULL OR ur.valid_from <= :t)`
 		query += `AND (ur.valid_to IS NULL OR ur.valid_to > :t)`
-		params["t"] = toTimeInteger(t)
+		params["t"] = toNullTimeInteger(t)
 	}
 
 	query += "ORDER BY r.name"
@@ -232,7 +222,7 @@ func (z *UserRepository) GetUserRoles(ctx context.Context, tx model.ReadOnlyTran
 
 	defer func() {
 		if err := rs.Close(); err != nil {
-			logger.Warn().Err(err).Msg("Cannot close resultset")
+			logger.Warn().Err(err).Msg("cannot close resultset")
 		}
 	}()
 
@@ -249,9 +239,9 @@ func (z *UserRepository) GetUserRoles(ctx context.Context, tx model.ReadOnlyTran
 
 }
 
-func (z *UserRepository) SetUserRoles(ctx context.Context, tx model.Transaction, userID string, roles []model.UserRole) error {
+func (z *Repository) SetUserRoles(ctx context.Context, tx model.Transaction, userID string, roles []model.UserRole) error {
 
-	logger := ctxutil.NewLogger(componantUserRepo, "SetUserRoles", ctx)
+	logger := logging.New(ctx, componentRepo, "SetUserRoles")
 	logger.Debug().Msg("invoked")
 
 	currentRoles, errRoles := z.GetUserRoles(ctx, tx, userID, nil)
@@ -278,7 +268,7 @@ func (z *UserRepository) SetUserRoles(ctx context.Context, tx model.Transaction,
 
 }
 
-func (z *UserRepository) deleteUser(tx model.WriteOnlyTransaction, userID string) error {
+func (z *Repository) deleteUser(tx model.WriteOnlyTransaction, userID string) error {
 
 	query := "DELETE FROM users WHERE id = :userID"
 	params := map[string]interface{}{
@@ -301,7 +291,7 @@ func (z *UserRepository) deleteUser(tx model.WriteOnlyTransaction, userID string
 
 }
 
-func (z *UserRepository) deleteUserRole(tx model.WriteOnlyTransaction, userID, roleID string) error {
+func (z *Repository) deleteUserRole(tx model.WriteOnlyTransaction, userID, roleID string) error {
 
 	query := "DELETE FROM user_role WHERE user_id = :userID AND role_id = :roleID"
 	params := map[string]interface{}{
@@ -313,7 +303,7 @@ func (z *UserRepository) deleteUserRole(tx model.WriteOnlyTransaction, userID, r
 
 }
 
-func (z *UserRepository) deleteUserRoles(tx model.WriteOnlyTransaction, userID string) error {
+func (z *Repository) deleteUserRoles(tx model.WriteOnlyTransaction, userID string) error {
 
 	query := "DELETE FROM user_role WHERE user_id = :userID"
 	params := map[string]interface{}{
@@ -324,7 +314,7 @@ func (z *UserRepository) deleteUserRoles(tx model.WriteOnlyTransaction, userID s
 
 }
 
-func (z *UserRepository) setUserRole(tx model.WriteOnlyTransaction, userID string, role model.UserRole) error {
+func (z *Repository) setUserRole(tx model.WriteOnlyTransaction, userID string, role model.UserRole) error {
 	query := `
 	INSERT INTO user_role (user_id, role_id, valid_from, valid_to)
 	VALUES (:userID, :roleID, :validFrom, :validTo)
@@ -340,7 +330,7 @@ func (z *UserRepository) setUserRole(tx model.WriteOnlyTransaction, userID strin
 }
 
 // findComplement returns the roles in a but not in b
-func (z *UserRepository) findComplement(a, b []model.UserRole) []model.UserRole {
+func (z *Repository) findComplement(a, b []model.UserRole) []model.UserRole {
 
 	includes := func(z []model.UserRole, roleID string) bool {
 		for _, x := range z {
@@ -368,8 +358,8 @@ func convertToUser(u dbUser) *model.User {
 		Username:     u.Username.String,
 		Name:         u.Name.String,
 		PasswordHash: u.PasswordHash.String,
-		Created:      *toTimePointer(u.Created),
-		Updated:      *toTimePointer(u.Updated),
+		Created:      toTime(u.Created),
+		Updated:      toTime(u.Updated),
 	}
 }
 
@@ -377,8 +367,8 @@ func convertToRole(r dbUserRole) model.UserRole {
 	return model.UserRole{
 		ID:        r.ID.String,
 		Name:      r.Name.String,
-		ValidFrom: toTimePointer(r.ValidFrom),
-		ValidTo:   toTimePointer(r.ValidTo),
+		ValidFrom: toTimePointer(toTime(r.ValidFrom)),
+		ValidTo:   toTimePointer(toTime(r.ValidTo)),
 	}
 }
 
@@ -397,7 +387,7 @@ func userroleToParams(userID string, role model.UserRole) map[string]interface{}
 	return map[string]interface{}{
 		"userID":    toNullString(userID),
 		"roleID":    toNullString(role.ID),
-		"validFrom": toTimeInteger(role.ValidFrom),
-		"validTo":   toTimeInteger(role.ValidTo),
+		"validFrom": toNullTimeInteger(role.ValidFrom),
+		"validTo":   toNullTimeInteger(role.ValidTo),
 	}
 }

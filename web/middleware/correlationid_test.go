@@ -10,7 +10,9 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi"
-	"wallawire/ctxutil"
+
+	"wallawire/idgen"
+	"wallawire/model"
 	"wallawire/web/middleware"
 )
 
@@ -24,7 +26,7 @@ const (
 
 func printCorrelationIdHandler() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cID := ctxutil.CorrelationIDFromContext(r.Context())
+		cID := model.CorrelationIDFromContext(r.Context())
 
 		msg := []byte(cID)
 		w.Header().Set(hContentLength, strconv.Itoa(len(msg)))
@@ -53,7 +55,7 @@ func TestCorrelationID(b *testing.T) {
 			RequestBody:    nil,
 			ResponseStatus: http.StatusOK,
 			ResponseHeaders: map[string]string{
-				hContentLength: "36",
+				hContentLength: "20",
 				hContentType:   mimeTypeText,
 				hDate:          ignoreValue,
 			},
@@ -72,13 +74,10 @@ func TestCorrelationID(b *testing.T) {
 
 		testFn := func(t *testing.T) {
 
-			idgen, errGen := ctxutil.NewIdGenerator()
-			if errGen != nil {
-				t.Fatal(errGen)
-			}
+			idg := idgen.NewIdGenerator()
 
 			handler := chi.NewRouter()
-			handler.Use(middleware.CorrelationID(idgen))
+			handler.Use(middleware.CorrelationID(idg))
 			handler.Get("/", printCorrelationIdHandler())
 
 			server := httptest.NewServer(handler)
